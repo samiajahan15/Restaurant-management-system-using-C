@@ -6,9 +6,9 @@
 
 struct menuNode
 {
-    int code;      // product code 
+    int code;      // product code
     char name[50]; // product name
-    double price;  // price in Tk 
+    double price;  // price in Tk
     struct menuNode *left;
     struct menuNode *right;
 };
@@ -53,7 +53,7 @@ struct menuNode *searchMenu(struct menuNode *root, int code)
         return searchMenu(root->right, code);
 }
 
-// printing menu in order traversal 
+// printing menu in order traversal
 void printMenu(struct menuNode *root)
 {
     if (root == NULL)
@@ -179,7 +179,7 @@ void showTables()
             printf("Table %d : OCCUPIED\n", tables[i].id);
     }
 }
-
+//
 int assignTable(int id)
 {
     int i;
@@ -200,6 +200,8 @@ int assignTable(int id)
     }
     return 0;
 }
+
+////////****************** */
 
 void freeTable(int id)
 {
@@ -468,6 +470,7 @@ void cashierMenu()
         printf("6. Show Menu\n");
         printf("0. Back to Main Menu\n");
         printf("Enter choice: ");
+
         if (scanf("%d", &choice) != 1)
             return;
 
@@ -684,10 +687,13 @@ void cashierMenu()
 void chefMenu()
 {
     int choice;
+    int currentCookingOrderId = -1;  // no active order at start
+
     while (1)
     {
         printf("\n=== Chef Panel ===\n");
-        printf("1. Take Next Order from Kitchen\n");
+        printf("1. Take Next Order from Kitchen (start cooking)\n");
+        printf("2. Mark Current Order as READY\n");
         printf("0. Back to Main Menu\n");
         printf("Enter choice: ");
         if (scanf("%d", &choice) != 1)
@@ -696,10 +702,19 @@ void chefMenu()
         if (choice == 0)
             break;
 
+        /* 1. Take next order from kitchen queue and start cooking */
         if (choice == 1)
         {
             int orderId;
             struct order *ord;
+
+            if (currentCookingOrderId != -1)
+            {
+                printf("You are already cooking Order %d. ",
+                       currentCookingOrderId);
+                printf("Please mark it READY before taking a new one.\n");
+                continue;
+            }
 
             orderId = dequeueKitchen();
             if (orderId == -1)
@@ -715,13 +730,38 @@ void chefMenu()
                 }
                 else
                 {
-                    printf("Cooking Order %d for Table %d...\n",
+                    currentCookingOrderId = orderId;  // remember this order
+                    printf("Now cooking Order %d for Table %d...\n",
                            ord->orderId, ord->tableNo);
                     showOrderDetails(ord);
-                    ord->status = 2; /* READY */
-                    enqueueReady(orderId);
-                    printf("Order %d is READY.\n", ord->orderId);
+                    /* status is already 1 (IN_KITCHEN) from cashier */
                 }
+            }
+        }
+        /* 2. Mark the current cooking order as READY */
+        else if (choice == 2)
+        {
+            struct order *ord;
+
+            if (currentCookingOrderId == -1)
+            {
+                printf("No order is currently being cooked.\n");
+            }
+            else
+            {
+                ord = findOrderById(currentCookingOrderId);
+                if (ord == NULL)
+                {
+                    printf("Order not found.\n");
+                }
+                else
+                {
+                    ord->status = 2;  /* READY */
+                    enqueueReady(currentCookingOrderId);
+                    printf("Order %d for Table %d is now READY.\n",
+                           ord->orderId, ord->tableNo);
+                }
+                currentCookingOrderId = -1;  // free slot for next order
             }
         }
         else
@@ -731,6 +771,7 @@ void chefMenu()
     }
 }
 
+
 void waiterMenu()
 {
     int choice;
@@ -738,6 +779,7 @@ void waiterMenu()
     {
         printf("\n=== Waiter Panel ===\n");
         printf("1. Serve Next Ready Order\n");
+        printf("2. Mark Table as Free (Customer Left)\n");
         printf("0. Back to Main Menu\n");
         printf("Enter choice: ");
         if (scanf("%d", &choice) != 1)
@@ -766,15 +808,25 @@ void waiterMenu()
                 }
                 else
                 {
-                    printf("Serving Order %d for Table %d...\n", ord->orderId, ord->tableNo);
+                    printf("Serving Order %d for Table %d...\n",
+                           ord->orderId, ord->tableNo);
                     showOrderDetails(ord);
                     total = calculateBill(ord);
                     printf("Final Bill: %.2lf Tk\n", total);
+
                     addToHistory(ord->orderId, ord->tableNo, total);
-                    freeTable(ord->tableNo);
+                    /* DO NOT freeTable here */
                     ord->status = 3; /* SERVED */
                 }
             }
+        }
+        else if (choice == 2)
+        {
+            int t;
+            printf("Enter table number to free (customer left): ");
+            scanf("%d", &t);
+            freeTable(t);
+            printf("Table %d is now FREE.\n", t);
         }
         else
         {
